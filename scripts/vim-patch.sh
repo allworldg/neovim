@@ -917,6 +917,7 @@ is_na_patch() {
   local NA_REGEXP="$NVIM_SOURCE_DIR/scripts/vim_na_regexp.txt"
   local NA_FILELIST="$NVIM_SOURCE_DIR/scripts/vim_na_files.txt"
   local NA_HUNKS_C="$NVIM_SOURCE_DIR/scripts/vim_na_hunks_c.txt"
+  local NA_HUNKS_H="$NVIM_SOURCE_DIR/scripts/vim_na_hunks_h.txt"
   local NA_HUNKS_VIM="$NVIM_SOURCE_DIR/scripts/vim_na_hunks_vim.txt"
 
   local FILES_REMAINING HUNKS HUNK_NUM_FINAL
@@ -946,6 +947,7 @@ is_na_patch() {
           '-I^\s+$' \
           '-I^#\s*(ifdef|if.*defined\().*FEAT_' \
           '-I^#\s*(else|endif)' \
+          '-I^EXTERN type_T t_.* INIT[2-9]\(' \
           '-I^EXTERN char e_(abstract|class|enum|interface|type)_' \
           '-I^EXTERN char e_.*def_function' \
           '-I^EXTERN char e_.*enddef' \
@@ -954,14 +956,19 @@ is_na_patch() {
           '-I^\s*INIT\(= .+"E[0-9]+: .*:def ' \
           '-I^\s*INIT\(= .+"E[0-9]+: .*enddef"' \
           '-I^\s*INIT\(= .+"E[0-9]+: .*[vV]im9' \
-          "$patch" -- "$file")
-        test -n "${HUNKS}" && return 1
+          "$patch" -- "${file}" |
+          grep '^@@ .* @@')
+        if test -n "$HUNKS"; then
+          HUNK_NUM_FINAL=$(echo "$HUNKS" | sed 's/^@@ .* @@ \?//' | grep -cv -f "$NA_HUNKS_H")
+          test "$HUNK_NUM_FINAL" -ne 0 && return 1
+        fi
         ;;
       *.c)
         HUNKS=$(git -C "${VIM_SOURCE_DIR}" diff-tree --no-commit-id -r -b -U0 \
           '-I^\s+$' \
           '-I^#\s*(ifdef|if.*defined\().*FEAT_' \
           '-I^#\s*(else|endif)' \
+          '-I^\s+\{"prop_[a-z]+",.*f_prop_[a-z]+},$' \
           '-I#\s*define.*ex_ni$' \
           '-I[_.>]sc_version = ' \
           '-I[_.>]uf_script_ctx_version = ' \
