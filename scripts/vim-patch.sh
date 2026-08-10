@@ -942,7 +942,13 @@ is_na_patch() {
           test "$HUNK_NUM_FINAL" -ne 0 && return 1
         fi
         ;;
-      src/testdir/Make*.mak)
+      src/testdir/Makefile)
+        HUNKS=$(git -C "${VIM_SOURCE_DIR}" diff-tree --no-commit-id -r -b -U0 \
+          '-IREDIR_TEST_TO_NULL = ' \
+          "$patch" -- "${file}")
+        test -n "$HUNKS" && return 1
+        ;;
+      src/testdir/Make_all.mak)
         HUNKS=$(git -C "${VIM_SOURCE_DIR}" diff-tree --no-commit-id -r -b -U0 \
           '-I\stest8[67]\.out \\$' \
           "$patch" -- "${file}")
@@ -951,7 +957,9 @@ is_na_patch() {
       *.h)
         HUNKS=$(git -C "${VIM_SOURCE_DIR}" diff-tree --no-commit-id -r -b -U0 \
           '-I^\s+$' \
-          '-I^#\s*(ifdef|if.*defined\().*FEAT_' \
+          '-I^\s*/?\*/?$' \
+          '-I^\s*(//|/?\*).*\s[vV]im9' \
+          '-I^#\s*((ifdef|ifndef|define|undef)|(if|elif)\s.*defined\().*FEAT_' \
           '-I^#\s*(else|endif)' \
           '-I#\s*define\s+XDG_' \
           '-I^EXTERN type_T t_.* INIT[2-9]\(' \
@@ -960,11 +968,14 @@ is_na_patch() {
           '-I^EXTERN char e_.*enddef' \
           '-I^EXTERN char e_.*vim9' \
           '-I^EXTERN char e_cannot_declare_.*variable_str' \
+          '-I^EXTERN char e_dictionary_not_set' \
+          '-I^EXTERN char e_dictnull' \
           '-I\sINIT\(= .+"E[0-9]+: (Abstract|Class|Enum|Interface|Type) ' \
           '-I\sINIT\(= .+"E[0-9]+: .*:def ' \
           '-I\sINIT\(= .+"E[0-9]+: .*enddef"' \
           '-I\sINIT\(= .+"E[0-9]+: .*[vV]im9' \
           '-I\sINIT\(= .+"E1016: Cannot declare .* variable: ' \
+          '-I\s+INIT\(= .+"E1103: Dictionary not set' \
           "$patch" -- "${file}" |
           grep '^@@ .* @@')
         if test -n "$HUNKS"; then
@@ -975,13 +986,17 @@ is_na_patch() {
       *.c)
         HUNKS=$(git -C "${VIM_SOURCE_DIR}" diff-tree --no-commit-id -r -b -U0 \
           '-I^\s+$' \
-          '-I^#\s*include\s+<proto/' \
-          '-I^#\s*(ifdef|if.*defined\().*FEAT_' \
+          '-I^\s*/?\*/?$' \
+          '-I^\s*(//|/?\*).*\s[vV]im9' \
+          '-I^#\s*((ifdef|ifndef|define|undef)\s|(if|elif)\s.*defined\().*FEAT_' \
           '-I^#\s*(else|endif)' \
+          '-I^#\s*include\s+<proto/' \
           '-I^\s+\{"prop_[a-z]+",.*f_prop_[a-z]+},$' \
           '-I#\s*define.*ex_ni$' \
           '-I[_.>]sc_version = ' \
           '-I[_.>]uf_script_ctx_version = ' \
+          '-I = skip_type\(.+\);$' \
+          '-Icheck_typval_type\(.+\)' \
           "$patch" -- "${file}" |
           grep '^@@ .* @@')
         if test -n "$HUNKS"; then
